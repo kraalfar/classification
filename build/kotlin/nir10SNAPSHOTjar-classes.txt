@@ -1,0 +1,1 @@
+/Users/faridbag/homework/nir/build/classes/kotlin/main/MainKt.class:/Users/faridbag/homework/nir/build/classes/kotlin/main/TestKt.class
