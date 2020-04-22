@@ -1,31 +1,36 @@
-import bayes.*
+import krangl.*
+import smile.clustering.DBSCAN
+import smile.clustering.KMeans
+import util.*
+import java.io.File
 
 fun main() {
-    val (train, test) = trainTestSplit("data/sh_sessions_multi.tsv")
+//    SessionFilter.filter("data/UI_1-2buckets_6march.tsv")
+//    val ses = makeSessions("data/UI_1-2buckets_6march_filt.tsv")
+//    testWrite(ses, "data/test.tsv")
+//    ses.shuffle()
+    val df = DataFrame.readTSV("data/sh_sessions_multi.tsv")
+    val ses = ArrayList<String>()
+    val lab = ArrayList<String>()
 
-    val bow = BoW(100)
-    bow.initialize(train)
+    for (i in 0 until df.nrow) {
+        ses.add(df["events"][i].toString())
+        lab.add(df["category"][i].toString())
+    }
+//    val s: ArrayList<Session> = ses.slice(0 .. 1000) as ArrayList<Session>
+//    val s2: Array<Session> = s.toArray() as Array<Session>
+//
+//
+//    val rnn = smile.neighbor.LinearSearch<Session>(s2, DistSes())
+//
+    for (i in 1 until 11) {
+        for (j in 1 until 11) {
+            val clusters = DBSCAN.fit(ses.toArray(), DistSes(), i, j * 0.1)
+            val ind = IntCol("clust", clusters.y)
+            val ndf = df.addColumn("clust") {ind}
+            ndf.writeTSV(File("data/test/test_$i _$j.tsv"))
 
-    val (X_bow, y_bow) = bow.transform(train)
-    val (X_bow_test, y_bow_test) = bow.transform(test)
-    val classificator = NaiveBayesCounter(1e-4)
-    classificator.fit(X_bow, y_bow)
-
-    val ans = classificator.predict(X_bow_test)
-    var tot = 0.0
-    for(i in y_bow_test.indices) {
-        if (y_bow_test[i].contains(ans[i])) {
-            tot += 1
         }
     }
-    println(tot / y_bow_test.size)
-//
-//    ans = classificator.predict(X_bow_test, mode = "min")
-//    tot = 0.0
-//    for(i in y_bow_test.indices) {
-//        if (y_bow_test[i].contains(ans[i])) {
-//            tot += 1
-//        }
-//    }
-//    println(tot / y_bow_test.size)
+
 }
