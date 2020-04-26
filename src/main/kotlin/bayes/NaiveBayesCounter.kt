@@ -40,7 +40,7 @@ class NaiveBayesCounter(private val alpha: Double = 1e-5) {
 
 
     fun logProb(X: koma.matrix.Matrix<Double>): koma.matrix.Matrix<Double> {
-        val ans = zeros(X.shape()[0], classes.size)
+        var ans = zeros(X.shape()[0], classes.size)
         for (i in 0 until X.shape()[0]) {
             for (j in classes.indices) {
                 val cls = classes[j]
@@ -51,15 +51,19 @@ class NaiveBayesCounter(private val alpha: Double = 1e-5) {
                 }
             }
         }
-        return ans
+        val p = fill(ans.shape()[0], ans.shape()[1]) {i, j -> 1 / (exp(ans[i, 0..ans.shape()[1]-1] - ans[i, j]).mean() * ans.shape()[1]) }
+        return p
     }
 
-    fun predict(X: koma.matrix.Matrix<Double>): List<String> {
+    fun predict(X: koma.matrix.Matrix<Double>): ArrayList<ArrayList<String>> {
         val probs = logProb(X)
+        val ans = ArrayList<ArrayList<String>>()
 
-        val ans = ArrayList<String>()
+        for (i in 0 until probs.shape()[0]) {
+            ans.add(ArrayList<String>())
+        }
+        probs.forEachIndexed { row, col, ele -> if (ele > 0.05) {ans[row].add(classes[col])}}
 
-        probs.forEachRow { ans.add(classes[it.argMax()]) }
         return ans
     }
 }

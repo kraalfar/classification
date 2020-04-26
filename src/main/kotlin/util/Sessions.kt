@@ -2,11 +2,9 @@ package util
 
 import com.beust.klaxon.JsonObject
 import com.beust.klaxon.Parser
-import koma.min
 import krangl.*
 import java.io.File
 import java.lang.StringBuilder
-
 
 
 class SessionFilter {
@@ -52,7 +50,7 @@ class SessionFilter {
             val c: ArrayList<String?> = ArrayList()
             for (i in 0 until df.nrow) {
                 val s = df["event_data"][i].toString()
-                val g =  df["group_id"][i].toString()
+                val g = df["group_id"][i].toString()
                 val e = df["event_id"][i].toString()
                 c.add(ai(s, g, e, parser))
             }
@@ -66,22 +64,21 @@ class SessionFilter {
 }
 
 
-class Action(val time: Long, val event_id: String, val group_id: String, val dt: String) {
+class Action(val time: Long, val group_id: String, val event_id: String, val dt: String) {
     fun print() {
-        println("$time $event_id $group_id $dt")
+        println("$time $group_id $event_id $dt")
     }
 
-    fun get_event(): String {
-        return group_id + "_" + dt
+    fun getEvent(): String {
+        return "$group_id; $event_id; $dt"
     }
 }
 
-
-class Session(val id: String) {
+class Session(val id: String, val startTime: Long = 0) {
     var actions: ArrayList<Action> = ArrayList()
 
-    fun add(time: Long, event: String, group: String, action: String) {
-        actions.add(Action(time, event, group, action))
+    fun add(time: Long, group: String, event: String, action: String) {
+        actions.add(Action(time,group,event, action))
     }
 
     fun print() {
@@ -92,15 +89,21 @@ class Session(val id: String) {
     }
 
     fun time(): Long {
-        val t: Long = actions[actions.size-1].time
-        return t / 100 / 60
+        return actions[actions.size - 1].time
     }
 
     fun events(): String {
         val events = ArrayList<String>()
         for (action in actions)
-            events.add(action.get_event())
+            events.add(action.getEvent())
         return events.joinToString(separator = " , ")
+    }
+
+    fun times(): String {
+        val times = ArrayList<String>()
+        for (action in actions)
+            times.add(action.time.toString())
+        return times.joinToString(separator = " , ")
     }
 }
 
@@ -127,10 +130,10 @@ fun makeSessions(path: String, threshold: Long = 36000): ArrayList<Session> {
                 cnt++
                 tot++
                 start = time
-                ses.add(Session(dev + "_" + cnt.toString()))
-                ses[tot].add(time - start, event, groupId, dt)
+                ses.add(Session(dev + "_" + cnt.toString(), time))
+                ses[tot].add(time - start, groupId, event, dt)
             } else {
-                ses[tot].add(time - start, event, groupId, dt)
+                ses[tot].add(time - start, groupId, event, dt)
             }
             prev = time
 
@@ -139,98 +142,41 @@ fun makeSessions(path: String, threshold: Long = 36000): ArrayList<Session> {
     return ses
 }
 
-
-
-
 fun testWrite(ses: ArrayList<Session>, path: String) {
     val ids = ArrayList<String>()
     val min = ArrayList<Long>()
     val events = ArrayList<String>()
+    val times = ArrayList<String>()
+
     for (s in ses) {
         ids.add(s.id)
         min.add(s.time())
         events.add(s.events())
+        times.add(s.times())
     }
+
     val ids_c = StringCol("session_id", ids)
     val min_c = LongCol("min", min)
     val events_c = StringCol("events", events)
-    val ndf = dataFrameOf(ids_c, min_c, events_c)
-    ndf.writeTSV(File(path))
+    val times_c = StringCol("timestamps", times)
+
+    val ndf = dataFrameOf(ids_c, min_c, events_c, times_c)
+    ndf.writeTSV(File("$path.tsv"))
 }
 
-class DistSes<T> : smile.math.distance.Distance<T> {
-    override fun d(x: T, y: T): Double {
-        if (x is Session && y is Session)
-            return 1 - dist(x, y)
-        if (x is String && y is String)
-            return 1 - dist(x, y)
-        return 1.0
+fun sessionsFromTSV(path: String): ArrayList<Session> {
+    val df = DataFrame.readTSV(path)
+    val ses = ArrayList<Session>()
+    for (i in 0 until df.nrow) {
+        val events = df["events"][i].toString().split(" , ")
+//        if (events.size < 3)
+//            continue
+        val times = df["timestamps"][i].toString().split(" , ")
+        ses.add(Session(df["session_id"][i].toString()))
+        for (j in events.indices) {
+            val params = events[j].split(" ;")
+            ses[ses.size - 1].add(times[j].toLong(), params[0], params[1], params[2])
+        }
     }
-
-}
-
-fun dist(s1: Session, s2: Session): Double {
-    val a1 = ArrayList<String>()
-    val a2 = ArrayList<String>()
-
-    for (a in s1.actions) {
-        a1.add(a.event_id + " " + a.group_id + " " + a.dt)
-    }
-
-    for (a in s2.actions) {
-        a2.add(a.event_id + " " + a.group_id + " " + a.dt)
-    }
-
-    val h1 = a1.groupingBy { it }.eachCount()
-    val h2 = a2.groupingBy { it }.eachCount()
-
-    val keys = HashSet<String>()
-    keys.addAll(h1.keys)
-    keys.addAll(h2.keys)
-
-    val h3 = HashMap<String, Int>()
-    for (k in keys) {
-        h3[k] = min(h1.getOrDefault(k, 0), h2.getOrDefault(k, 0))
-    }
-
-    val v1 = h1.values.sum()
-    val v2 = h2.values.sum()
-    val v3 = h3.values.sum()
-
-    val f1: Double = (1.0 * v3) / v1
-    val f2: Double = (1.0 * v3) / v2
-
-    if (f1 + f2 == 0.0)
-        return 0.0
-    return 2 * f1 * f2 / (f1 + f2)
-
-}
-
-fun dist(s1: String, s2: String): Double {
-    val a1 = s1.split(" , ")
-    val a2 = s2.split(" , ")
-
-    val h1 = a1.groupingBy { it }.eachCount()
-    val h2 = a2.groupingBy { it }.eachCount()
-
-    val keys = HashSet<String>()
-    keys.addAll(h1.keys)
-    keys.addAll(h2.keys)
-
-    val h3 = HashMap<String, Int>()
-    for (k in keys) {
-        h3[k] = min(h1.getOrDefault(k, 0), h2.getOrDefault(k, 0))
-    }
-
-    val v1 = h1.values.sum()
-    val v2 = h2.values.sum()
-    val v3 = h3.values.sum()
-
-    val f1: Double = (1.0 * v3) / v1
-    val f2: Double = (1.0 * v3) / v2
-
-    if (f1 + f2 == 0.0)
-        return 0.0
-    return 2 * f1 * f2 / (f1 + f2)
-
+    return ses
 }
