@@ -70,7 +70,7 @@ class Action(val time: Long, val group_id: String, val event_id: String, val dt:
     }
 
     fun getEvent(): String {
-        return "$group_id; $event_id; $dt"
+        return group_id + "_" + event_id + "_" + dt
     }
 }
 
@@ -155,12 +155,12 @@ fun testWrite(ses: ArrayList<Session>, path: String) {
         times.add(s.times())
     }
 
-    val ids_c = StringCol("session_id", ids)
-    val min_c = LongCol("min", min)
-    val events_c = StringCol("events", events)
-    val times_c = StringCol("timestamps", times)
+    val idsCol = StringCol("session_id", ids)
+    val minCol = LongCol("ms", min)
+    val eventsCol = StringCol("events", events)
+//    val times_c = StringCol("timestamps", times)
 
-    val ndf = dataFrameOf(ids_c, min_c, events_c, times_c)
+    val ndf = dataFrameOf(idsCol, minCol, eventsCol)
     ndf.writeTSV(File("$path.tsv"))
 }
 
