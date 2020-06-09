@@ -1,40 +1,67 @@
+//import bayes.ClassTest
 import bayes.ClassTest
 import bayes.trainTestSplit
+import knn.BoWKNN
+import knn.SessionKNN
+import koma.argMax
+import koma.mat
 
 fun main() {
 //    val ses = sessionsFromTSV("data/UI_3-4buckets_9_march_session.tsv")
-
-
+//    trainTestSplit("data/test/test_data.tsv")
     val (train, test) = trainTestSplit("data/test/test_data.tsv")
-    val cat = "database"
-    val cl = ClassTest(cat = cat)
+    val classes = listOf(
+        "reading", "coding", "ide_start",
+        "notifications", "rdb", "database",
+        "ide_close", "vcs", "terminal", "settings"
+    )
 
-    var best = 0.0
-    var bi: Int = 0
-    var bj: Int = 0
-
-    for (i in 0 until 20) {
-        for (j in 0 until 20) {
-            cl.initialize(train, i, j)
-            cl.fit(train)
-            val (t, aucTrain) = cl.predict(train)
-            val (o, aucTest) = cl.predict(test)
-            if (aucTest > best) {
-                best = aucTest
-                bi = i
-                bj = j
-            }
-            println("limit=$i, top=$j\ntrain=$aucTrain \ntest=$aucTest\n---------------------------")
-
+    for (k in 1 until 6 step 2) {
+        for (cls in classes) {
+            val cl = BoWKNN(cls)
+            cl.initialize(train, 0, 0)
+            cl.fit(train, k)
+            println(cl.predictF1(test))
         }
+        println("---------------------")
     }
+//    val (train, test) = trainTestSplit("data/test/test_data.tsv")
+//    for (cat in classes) {
+//        val cl = ClassTest(cat = cat)
+//        //
+//        var best = 0.0
+//        var bi: Int = 0
+//        var bj: Int = 0
+//        //
+//        for (i in 0 until 10) {
+//            for (j in 0 until 10) {
+//                cl.initialize(train, i, j)
+//                cl.fit(train)
+//                val (t, aucTrain) = cl.predict(train)
+//                val (o, aucTest) = cl.predict(test)
+//                if (aucTest > best) {
+//                    best = aucTest
+//                    bi = i
+//                    bj = j
+//                }
+////                println("limit=$i, top=$j\ntrain=$aucTrain \ntest=$aucTest\n---------------------------")
+//
+//            }
+//        }
+//
+//        cl.initialize(train, bi, bj)
+//        cl.fit(train)
+//        val (t, aucTrain) = cl.predict(train)
+//        val (o, aucTest) = cl.predict(test)
+//        var m = 0
+//        println(o[50].toString())
+//        println(t[50].toString() + " " + o[50].toString())
 
-    println("BEST\nlimit=$bi, top=$bj\ntest=$best")
-
-//    smile.classification.KNN
 
 
-//    val small = ArrayList<Session>()
+
+//        println("BEST\nlimit=$bi, top=$bj\ntest=$best")
+//    }
 
 //    for (s in ses) {
 //        if (s.actions.size in 11..50) {
@@ -144,6 +171,5 @@ fun main() {
 //    }
 
 }
-
 
 

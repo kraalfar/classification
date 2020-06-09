@@ -1,15 +1,20 @@
 package bayes
 
-import koma.*
-import koma.extensions.*
+import koma.exp
+import koma.extensions.get
+import koma.extensions.set
+import koma.fill
+import koma.matrix.Matrix
+import koma.ones
+import koma.zeros
 import krangl.DataFrame
 import util.filter
 import java.util.ArrayList
 
-class NaiveBayesOneVAll(private val alpha: Double = 1e-5, val cat: String = "coding") {
+class NaiveBayesMultinomial(private val alpha: Double = 1e-5, val cat: String = "coding") {
 
     var p: Double = 0.0
-    var probs: ArrayList<koma.matrix.Matrix<Double>> = ArrayList()
+    var probs: ArrayList<Matrix<Double>> = ArrayList()
 
     var voc: Map<String, Int> = HashMap()
     lateinit var id2word: List<String>
@@ -58,10 +63,11 @@ class NaiveBayesOneVAll(private val alpha: Double = 1e-5, val cat: String = "cod
 
 
     fun fit (df: DataFrame) {
+
         val (X, y) = transform(df)
 
-        probs.add(ones(X.shape()[1], 11) * alpha)
-        probs.add(ones(X.shape()[1], 11) * alpha)
+        probs.add(ones(X.shape()[1], 1) * alpha)
+        probs.add(ones(X.shape()[1], 1) * alpha)
 
         for (i in y.indices) {
             var cls = 0
@@ -70,21 +76,17 @@ class NaiveBayesOneVAll(private val alpha: Double = 1e-5, val cat: String = "cod
             else
                 p++
 
-
             for (j in 0 until X.shape()[1]) {
-                val ind: Int = if (X[i, j] < 10.0) X[i, j].toInt() else 10
-                probs[cls][j, ind] += 1
-
+                probs[cls][j] += X[i, j]
             }
 
         }
 
         p /= y.size
+
         for (cls in 0 until 2) {
-            var probsMatrix = probs[cls]
-            val den = (1 + alpha) * probsMatrix.getRow(0).elementSum().toInt()
-            probsMatrix /= den
-            probs[cls] = probsMatrix
+            val den = probs[cls].elementSum()
+            probs[cls] = probs[cls] / den
         }
     }
 
@@ -95,11 +97,11 @@ class NaiveBayesOneVAll(private val alpha: Double = 1e-5, val cat: String = "cod
             for (cls in 0 until 2) {
                 ans[i, cls] = kotlin.math.ln(p * (1 - cls) + (1 - p) * cls)
                 for (k in 0 until X.shape()[1]) {
-                    val ind = if (X[i, k] < 10.0) X[i, k].toInt() else 10
-                    ans[i, cls] += kotlin.math.ln(probs[cls][k, ind])
+                    ans[i, cls] += X[i, k] * kotlin.math.ln(probs[cls][k] + alpha)
                 }
             }
         }
+
         val q = fill(
             ans.shape()[0],
             ans.shape()[1]

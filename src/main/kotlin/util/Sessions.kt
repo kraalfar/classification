@@ -76,9 +76,14 @@ class Action(val time: Long, val group_id: String, val event_id: String, val dt:
 
 class Session(val id: String, val startTime: Long = 0) {
     var actions: ArrayList<Action> = ArrayList()
+    var cat: String = ""
 
     fun add(time: Long, group: String, event: String, action: String) {
         actions.add(Action(time,group,event, action))
+    }
+
+    fun category(cat: String) {
+        this.cat = cat
     }
 
     fun print() {
@@ -179,4 +184,33 @@ fun sessionsFromTSV(path: String): ArrayList<Session> {
         }
     }
     return ses
+}
+
+fun sessionsFromDF(df: DataFrame): Array<Session>{
+    val ses = ArrayList<Session>()
+    for (i in 0 until df.nrow) {
+        val events = df["events"][i].toString().split(" , ")
+//        if (events.size < 3)
+//            continue
+        ses.add(Session(df["session_id"][i].toString()))
+        ses[ses.size - 1].category(df["Category"][i].toString().toLowerCase())
+        for (j in events.indices) {
+            val params = events[j].split("_", limit=3)
+            ses[ses.size - 1].add(0, params[0], params[1], params[2])
+        }
+    }
+    return Array(ses.size) {i -> ses[i]}
+}
+
+fun filter(events: List<String>): ArrayList<String> {
+    val res = ArrayList<String>()
+    for (event in events) {
+        if (event.startsWith("file.types.usage_open"))
+            res.add("file.types.usage_open")
+        else if (event.startsWith("file.types.usage_edit"))
+            res.add("file.types.usage_edit")
+        else
+            res.add(event)
+    }
+    return res
 }

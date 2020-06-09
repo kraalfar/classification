@@ -2,6 +2,7 @@ package util
 
 import koma.min
 import smile.math.distance.DynamicTimeWarping
+import java.lang.Math.sqrt
 
 class DistSes<T> : smile.math.distance.Distance<T> {
     override fun d(x: T, y: T): Double {
@@ -110,6 +111,34 @@ class DWTDist<T> : smile.math.distance.Distance<T> {
     override fun d(x: T, y: T): Double {
         if (x is Session && y is Session)
             return DTWSession(x, y)
+        return 1.0
+    }
+
+}
+
+fun prod(s1: DoubleArray, s2: DoubleArray): Double {
+    var prod = 0.0
+    for (i in s1.indices) {
+        prod += s1[i] * s2[i]
+    }
+    return prod
+}
+
+fun cosineSimilarity(s1: DoubleArray, s2: DoubleArray): Double {
+    val norm1 = kotlin.math.sqrt(prod(s1, s1))
+    val norm2 = kotlin.math.sqrt(prod(s2, s2))
+    if (norm1 == 0.0 || norm2 == 0.0) {
+        return 1.0
+    }
+    return -prod(s1, s2) / norm1 / norm2
+
+
+}
+
+class CosDist<T> : smile.math.distance.Distance<T> {
+    override fun d(x: T, y: T): Double {
+        if (x is DoubleArray && y is DoubleArray)
+            return cosineSimilarity(x, y)
         return 1.0
     }
 
