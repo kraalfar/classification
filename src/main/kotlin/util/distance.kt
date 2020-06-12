@@ -83,17 +83,33 @@ fun dist(s1: String, s2: String): Double {
 
 class ActionDist : smile.math.distance.Distance<Action> {
     override fun d(x: Action, y: Action): Double {
-        var score = 1.0
-        if (x.group_id != y.group_id)
-            return score
-        score -= 1.0 / 2
-        if (x.event_id != y.event_id)
-            return score
-        score -= 1.0 / 4
 
-        if (x.dt != y.dt)
-            return score
-        return 0.0
+        if (x.group_id == "actions" || y.group_id == "actions") {
+            if (x.dt == y.dt)
+                return 0.0
+            return 1.0
+        } else if (x.group_id == "productivity" || y.group_id == "productivity") {
+            if (x.dt == y.dt)
+                return 0.0
+            return 1.0
+        } else if (x.group_id == "file.types.usage" || y.group_id == "file.types.usage") {
+            if (x.event_id == y.event_id)
+                return 0.0
+            return 1.0
+        } else {
+            var score = 1.0
+            if (x.group_id != y.group_id)
+                return score
+            score -= 1.0 / 10
+            if (x.event_id != y.event_id)
+                return score
+            score -= 1.0 / 10
+
+            if (x.dt != y.dt)
+                return score
+            return 0.0
+        }
+
     }
 
 }
@@ -101,8 +117,8 @@ class ActionDist : smile.math.distance.Distance<Action> {
 val dtw = DynamicTimeWarping(ActionDist())
 
 fun DTWSession(s1: Session, s2: Session): Double {
-    val a1 = Array(s1.actions.size) { i -> s1.actions[i]}
-    val a2 = Array(s2.actions.size) { i -> s2.actions[i]}
+    val a1 = Array(s1.actions.size) { i -> s1.actions[i] }
+    val a2 = Array(s2.actions.size) { i -> s2.actions[i] }
 //    return dtw.apply(a1, a2) / (a1.size + a2.size)
     return dtw.apply(a1, a2)
 }
@@ -139,6 +155,26 @@ class CosDist<T> : smile.math.distance.Distance<T> {
     override fun d(x: T, y: T): Double {
         if (x is DoubleArray && y is DoubleArray)
             return cosineSimilarity(x, y)
+        return 1.0
+    }
+
+}
+
+class DTWKernel<T>: smile.math.kernel.MercerKernel<T> {
+    override fun k(x: T, y: T): Double {
+        if (x is DoubleArray && y is DoubleArray)
+            return cosineSimilarity(x, y)
+        return 1.0
+    }
+
+}
+
+class IntersectionKernel<T>: smile.math.kernel.MercerKernel<T> {
+    override fun k(x: T, y: T): Double {
+        if (x is Session && y is Session)
+            return 1 - dist(x, y)
+        if (x is String && y is String)
+            return 1 - dist(x, y)
         return 1.0
     }
 

@@ -1,33 +1,29 @@
-package knn
+package svm
 
-import koma.*
-import koma.extensions.*
 import krangl.DataFrame
 import smile.classification.KNN
-import util.DWTDist
-import util.Session
-import util.sessionsFromDF
-import java.util.ArrayList
+import smile.classification.SVM
+import util.*
 
-class SessionKNN(val cat: String = "coding") {
+class SessionSVM(val cat: String = "coding") {
 
-    lateinit var knn: KNN<Session>
+    lateinit var knn: SVM<Session>
 
-    fun fit(df: DataFrame, k: Int) {
+    fun fit(df: DataFrame, c: Double, tol: Double) {
         val X = sessionsFromDF(df)
-        val y = IntArray (X.size) { i -> if (X[i].cat.contains(cat)) 1 else 0}
-        knn = KNN.fit(X, y, DWTDist(),  k)
+        val y = IntArray (X.size) { i -> if (X[i].cat.contains(cat)) 1 else -1}
+        knn = SVM.fit(X, y, IntersectionKernel(),  c, tol)
     }
 
     fun predict(df: DataFrame): IntArray {
         val X = sessionsFromDF(df)
-        val y = Array<Int> (X.size) {i -> if (X[i].cat.contains(cat)) 1 else 0}
+        val y = Array<Int> (X.size) {i -> if (X[i].cat.contains(cat)) 1 else -1}
         return knn.predict(X)
     }
 
     fun predictF1(df: DataFrame): Double {
         val X = sessionsFromDF(df)
-        val y = Array<Int> (X.size) {i -> if (X[i].cat.contains(cat)) 1 else 0}
+        val y = Array<Int> (X.size) {i -> if (X[i].cat.contains(cat)) 1 else -1}
         val res = knn.predict(X)
         var tp = 0.0
         var tn = 0.0

@@ -5,6 +5,7 @@ import knn.BoWKNN
 import knn.SessionKNN
 import koma.argMax
 import koma.mat
+import svm.SessionSVM
 
 fun main() {
 //    val ses = sessionsFromTSV("data/UI_3-4buckets_9_march_session.tsv")
@@ -16,15 +17,27 @@ fun main() {
         "ide_close", "vcs", "terminal", "settings"
     )
 
-    for (k in 1 until 6 step 2) {
+    for (c in 1 until 10 step 3) {
         for (cls in classes) {
-            val cl = BoWKNN(cls)
-            cl.initialize(train, 0, 0)
-            cl.fit(train, k)
+            val cl = SessionSVM(cls)
+//            cl.initialize(train, 0, 0)
+            cl.fit(train, 10.0, 1e-5)
             println(cl.predictF1(test))
         }
         println("---------------------")
     }
+
+
+
+
+
+
+
+
+
+
+
+
 //    val (train, test) = trainTestSplit("data/test/test_data.tsv")
 //    for (cat in classes) {
 //        val cl = ClassTest(cat = cat)
