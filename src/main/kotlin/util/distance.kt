@@ -2,6 +2,7 @@ package util
 
 import koma.min
 import smile.math.distance.DynamicTimeWarping
+import java.lang.Math.max
 import java.lang.Math.sqrt
 
 class DistSes<T> : smile.math.distance.Distance<T> {
@@ -43,12 +44,7 @@ fun dist(s1: Session, s2: Session): Double {
     val v2 = h2.values.sum()
     val v3 = h3.values.sum()
 
-    val f1: Double = (1.0 * v3) / v1
-    val f2: Double = (1.0 * v3) / v2
-
-    if (f1 + f2 == 0.0)
-        return 0.0
-    return 2 * f1 * f2 / (f1 + f2)
+    return 1.0 * v3 / (min(v1, v2))
 
 }
 
@@ -123,7 +119,7 @@ fun DTWSession(s1: Session, s2: Session): Double {
     return dtw.apply(a1, a2)
 }
 
-class DWTDist<T> : smile.math.distance.Distance<T> {
+class DTWDist<T> : smile.math.distance.Distance<T> {
     override fun d(x: T, y: T): Double {
         if (x is Session && y is Session)
             return DTWSession(x, y)
@@ -131,6 +127,7 @@ class DWTDist<T> : smile.math.distance.Distance<T> {
     }
 
 }
+
 
 fun prod(s1: DoubleArray, s2: DoubleArray): Double {
     var prod = 0.0
@@ -162,8 +159,8 @@ class CosDist<T> : smile.math.distance.Distance<T> {
 
 class DTWKernel<T>: smile.math.kernel.MercerKernel<T> {
     override fun k(x: T, y: T): Double {
-        if (x is DoubleArray && y is DoubleArray)
-            return cosineSimilarity(x, y)
+        if (x is Session && y is Session)
+            return DTWSession(x, y)
         return 1.0
     }
 
@@ -175,6 +172,15 @@ class IntersectionKernel<T>: smile.math.kernel.MercerKernel<T> {
             return 1 - dist(x, y)
         if (x is String && y is String)
             return 1 - dist(x, y)
+        return 1.0
+    }
+
+}
+
+class CosKernel<T>: smile.math.kernel.MercerKernel<T> {
+    override fun k(x: T, y: T): Double {
+        if (x is DoubleArray && y is DoubleArray)
+            return cosineSimilarity(x, y)
         return 1.0
     }
 

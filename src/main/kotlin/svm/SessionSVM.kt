@@ -12,7 +12,7 @@ class SessionSVM(val cat: String = "coding") {
     fun fit(df: DataFrame, c: Double, tol: Double) {
         val X = sessionsFromDF(df)
         val y = IntArray (X.size) { i -> if (X[i].cat.contains(cat)) 1 else -1}
-        knn = SVM.fit(X, y, IntersectionKernel(),  c, tol)
+        knn = SVM.fit(X, y, EKernel(),  c, tol)
     }
 
     fun predict(df: DataFrame): IntArray {

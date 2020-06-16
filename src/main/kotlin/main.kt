@@ -5,11 +5,22 @@ import knn.BoWKNN
 import knn.SessionKNN
 import koma.argMax
 import koma.mat
+import krangl.DataFrame
+import krangl.readTSV
+import svm.BoWSVM
 import svm.SessionSVM
+import util.*
+import java.io.File
 
 fun main() {
 //    val ses = sessionsFromTSV("data/UI_3-4buckets_9_march_session.tsv")
 //    trainTestSplit("data/test/test_data.tsv")
+
+
+
+
+
+
     val (train, test) = trainTestSplit("data/test/test_data.tsv")
     val classes = listOf(
         "reading", "coding", "ide_start",
@@ -17,11 +28,11 @@ fun main() {
         "ide_close", "vcs", "terminal", "settings"
     )
 
-    for (c in 1 until 10 step 3) {
+    for (c in 1 until 10 step 2) {
         for (cls in classes) {
-            val cl = SessionSVM(cls)
-//            cl.initialize(train, 0, 0)
-            cl.fit(train, 10.0, 1e-5)
+            val cl = BoWSVM(cls)
+            cl.initialize(train, 0, 0)
+            cl.fit(train, c * 10.0, 1e-7)
             println(cl.predictF1(test))
         }
         println("---------------------")
@@ -170,9 +181,7 @@ fun main() {
 //    val s: ArrayList<Session> = ses.slice(0 .. 1000) as ArrayList<Session>
 
 
-//
-//
-//
+// Класстеризации
 //    for (i in 1 until 11) {
 //        for (j in 1 until 11) {
 //            val clusters = DBSCAN.fit(ses.toArray(), DistSes(), i, j * 0.1)

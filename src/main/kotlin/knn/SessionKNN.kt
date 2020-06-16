@@ -1,13 +1,11 @@
 package knn
 
-import koma.*
-import koma.extensions.*
 import krangl.DataFrame
 import smile.classification.KNN
-import util.DWTDist
+import util.DTWDist
+import util.DTWEDist
 import util.Session
 import util.sessionsFromDF
-import java.util.ArrayList
 
 class SessionKNN(val cat: String = "coding") {
 
@@ -16,7 +14,7 @@ class SessionKNN(val cat: String = "coding") {
     fun fit(df: DataFrame, k: Int) {
         val X = sessionsFromDF(df)
         val y = IntArray (X.size) { i -> if (X[i].cat.contains(cat)) 1 else 0}
-        knn = KNN.fit(X, y, DWTDist(),  k)
+        knn = KNN.fit(X, y, DTWEDist(),  k)
     }
 
     fun predict(df: DataFrame): IntArray {
