@@ -8,6 +8,13 @@ import util.CosDist
 import util.filter
 import java.util.ArrayList
 
+/**
+ * Класс реализующий классификатор KNN один против всех для метрик между сессиями, через мешок слов
+ * @property cat имя категории
+ * @property voc Словарь из оставшихся действий (действию соотвествуюет его номер)
+ * @property id2word Массив из всех слов в словаре
+ * @property n размер n-грам для словаря
+ */
 class BoWKNN(val cat: String = "coding") {
 
     var voc: Map<String, Int> = HashMap()
@@ -16,6 +23,13 @@ class BoWKNN(val cat: String = "coding") {
 
     lateinit var knn: KNN<DoubleArray>
 
+    /**
+     * Инициализирует словарь
+     * @param df таблица с сессиями
+     * @param limit порог, по которомы выкидываются редкие слова
+     * @param top количество популярных слов, выкидываемых из словаря
+     * @param n размер n-грам
+     */
     fun initialize(df: DataFrame, limit: Int = 5, top: Int = 0, n: Int = 1) {
         this.n = n
         val events = df["events"]
@@ -40,13 +54,18 @@ class BoWKNN(val cat: String = "coding") {
         voc = id2word.withIndex().toList().associate { it.value to it.index }
     }
 
+    /**
+     * Преобразует сессии в мешок слов
+     * @param df таблица с сессиями
+     * @return пара из массива мешков слов и меток категории сессии
+     */
     fun transform(df: DataFrame): Pair<Array<DoubleArray>, IntArray> {
         val res = ArrayList<DoubleArray>()
         val label = IntArray(df.nrow)
 
         for (i in 0 until df.nrow) {
             label[i] = if (df["Category"][i].toString().toLowerCase().contains(cat)) 1 else 0
-            val cm = DoubleArray(voc.size) {i -> 0.0}
+            val cm = DoubleArray(voc.size) {j -> 0.0}
 
             val eventsArr = filter(df["events"][i].toString().split(" , "))
             for (j in 0 until eventsArr.size - n + 1) {
@@ -63,16 +82,31 @@ class BoWKNN(val cat: String = "coding") {
         return Pair(Array(res.size) {i -> res[i] }, label)
     }
 
+    /**
+     *  Инициализирует SVM
+     *  @param df train data
+     *  @param k число соседей
+     */
     fun fit(df: DataFrame, k: Int) {
         val (X, y) = transform(df)
         knn = KNN.fit(X, y, CosDist(), k)
     }
 
+    /**
+     * Предсказывает метки для переданных сессий
+     * @param df data for prediction
+     * @return Массив меток
+     */
     fun predict(df: DataFrame): IntArray {
-        val (X, y) = transform(df)
+        val (X, _) = transform(df)
         return knn.predict(X)
     }
 
+    /**
+     * Возвращает f1-score предсказания
+     * @param df data for prediction
+     * @return Массив меток
+     */
     fun predictF1(df: DataFrame): Double {
         val (X, y) = transform(df)
         val res = knn.predict(X)

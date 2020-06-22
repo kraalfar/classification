@@ -6,18 +6,27 @@ import smile.math.distance.DynamicTimeWarping
 import java.io.File
 
 
-
-
-class Embeddings(path: String) {
+/**
+ * Класс для эмбедингов
+ * @property path путь до эмбедингов
+ * @property embd словарь эмбедингов
+ */
+class Embeddings(val path: String) {
     var embd =  HashMap<String, List<Double>>()
 
-    fun getEmbeddings(path: String) {
+    /**
+     * Достает эмбединги
+     */
+    fun getEmbeddings() {
         File(path).forEachLine { x ->
             embd[x.split("\t", limit = 2)[0]] =
-                    x.split("\t", limit = 2)[1].split("\t").map { it.toDouble() }
+                x.split("\t", limit = 2)[1].split("\t").map { it.toDouble() }
         }
     }
 
+    /**
+     * Считает расстояние между двумя действиями
+     */
     fun getDist(s1: String, s2: String): Double {
         if ((s1 in embd) && (s2 in embd)) {
             return cosineSimilarity(embd[s1]!!.toDoubleArray(), embd[s2]!!.toDoubleArray())
@@ -27,6 +36,9 @@ class Embeddings(path: String) {
 
 }
 
+/**
+ * обертка над расстоянием из класса эмбедингов
+ */
 class EmbeddingDist(val embeddings: Embeddings): smile.math.distance.Distance<Action> {
     override fun d(x: Action, y: Action): Double {
         val s1 = "${x.group_id}_${x.event_id}_${x.dt}"
@@ -36,8 +48,13 @@ class EmbeddingDist(val embeddings: Embeddings): smile.math.distance.Distance<Ac
 }
 
 val embeddings = Embeddings("data/test/embd_res.tsv")
+
+// dynamic type warping для EmbeddingDist
 val dtwE = DynamicTimeWarping(EmbeddingDist(embeddings))
 
+/**
+ * dtw принимает массивы, поэтому эта обертка преобразует сессии в массив
+ */
 fun DTWESession(s1: Session, s2: Session): Double {
     val a1 = Array(s1.actions.size) { i -> s1.actions[i] }
     val a2 = Array(s2.actions.size) { i -> s2.actions[i] }
@@ -46,6 +63,9 @@ fun DTWESession(s1: Session, s2: Session): Double {
 }
 
 
+/**
+ * Финальная обертка для применения в knn
+ */
 class DTWEDist<T> : smile.math.distance.Distance<T> {
     override fun d(x: T, y: T): Double {
         if (x is Session && y is Session)
@@ -54,6 +74,10 @@ class DTWEDist<T> : smile.math.distance.Distance<T> {
     }
 
 }
+
+/**
+ * Финальная обертка для применения в svm
+ */
 
 class DTWEKernel<T>: smile.math.kernel.MercerKernel<T> {
     override fun k(x: T, y: T): Double {
@@ -64,6 +88,9 @@ class DTWEKernel<T>: smile.math.kernel.MercerKernel<T> {
 
 }
 
+/**
+ * Считает косинусное расстояние между сессиями по эмбедингам
+ */
 fun distEmbd(s1: Session, s2: Session): Double {
     val x = DoubleArray(200)
     var cnt1 = 0
@@ -93,6 +120,10 @@ fun distEmbd(s1: Session, s2: Session): Double {
     return cosineSimilarity(x, y)
 }
 
+
+/**
+ * Обертка косинусного расстояния для svm
+ */
 class EKernel<T>: smile.math.kernel.MercerKernel<T> {
     override fun k(x: T, y: T): Double {
         if (x is Session && y is Session)

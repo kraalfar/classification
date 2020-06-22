@@ -1,30 +1,53 @@
 package bayes
 
-import koma.*
-import koma.extensions.*
 import krangl.DataFrame
 import java.util.ArrayList
 
+/**
+ * Класс для тестирование наивного байесса
+ */
+class NaiveBayesTest(val cat: String) {
 
-class ClassTest(val cat: String) {
+    var classifier = NaiveBayes(cat = cat)
 
-    var classifier = NaiveBayesMultinomial(cat = cat)
-
+    /**
+     * Инициализирует словарь
+     * @param df таблица с сессиями
+     * @param limit порог, по которомы выкидываются редкие слова
+     * @param top количество популярных слов, выкидываемых из словаря
+     * @param n размер n-грам
+     */
     fun initialize(df: DataFrame, limit: Int = 0, top: Int = 0, n: Int = 1) {
         classifier.initialize(df, limit, top, n)
     }
 
+    /**
+     * Подбириает параметры распределения по тестовым данным
+     * @param df таблица с тестовыми данными
+     */
     fun fit(df: DataFrame) {
         classifier.fit(df)
     }
 
-    fun predict(df: DataFrame): Pair<ArrayList<Double>, Double> {
+    /**
+     * Возвращает f1-score для разных трешхолдов предсказаний и auc
+     * @param df data for prediction
+     * @return пара из массива f1-score и auc
+     */
+    fun predictF1(df: DataFrame): Pair<ArrayList<Double>, Double> {
         val (X_bow, y_bow) = classifier.transform(df)
         val prob = classifier.prob(X_bow)
         val (f1s, auc) = ROCAUC(prob, y_bow, cat)
         return Pair(f1s, auc)
     }
 
+    /**
+     * Вычисляет ROCAUC
+     * @param prob Массив вероятнейстей принадлежности сессии к классу
+     * @param y массив из настоящих категорий сессий
+     * @param cat нужная нам категория
+     * @return пара из массива f1-score и auc
+     */
     private fun ROCAUC(
         prob: List<Double>,
         y: List<String>,

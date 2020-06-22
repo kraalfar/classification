@@ -10,6 +10,13 @@ import util.Session
 import util.filter
 import java.util.ArrayList
 
+/**
+ * Класс реализующий классификатор SVM один против всех для метрик между сессиями, через мешок слов
+ * @property cat имя категории
+ * @property voc Словарь из оставшихся действий (действию соотвествуюет его номер)
+ * @property id2word Массив из всех слов в словаре
+ * @property n размер n-грам для словаря
+ */
 class BoWSVM (val cat: String = "coding") {
 
     var voc: Map<String, Int> = HashMap()
@@ -18,6 +25,14 @@ class BoWSVM (val cat: String = "coding") {
 
     lateinit var knn: SVM<DoubleArray>
 
+
+    /**
+     * Инициализирует словарь
+     * @param df таблица с сессиями
+     * @param limit порог, по которомы выкидываются редкие слова
+     * @param top количество популярных слов, выкидываемых из словаря
+     * @param n размер n-грам
+     */
     fun initialize(df: DataFrame, limit: Int = 5, top: Int = 0, n: Int = 1) {
         this.n = n
         val events = df["events"]
@@ -36,12 +51,17 @@ class BoWSVM (val cat: String = "coding") {
         }
 
         id2word = eventsMap.filter { it.value > limit }
-                .toSortedMap(compareBy({ eventsMap[it]?.times(-1) }, { it })).keys.toList()
+            .toSortedMap(compareBy({ eventsMap[it]?.times(-1) }, { it })).keys.toList()
 
         id2word = id2word.slice(top until id2word.size)
         voc = id2word.withIndex().toList().associate { it.value to it.index }
     }
 
+    /**
+     * Преобразует сессии в мешок слов
+     * @param df таблица с сессиями
+     * @return пара из массива мешков слов и меток категории сессии
+     */
     fun transform(df: DataFrame): Pair<Array<DoubleArray>, IntArray> {
         val res = ArrayList<DoubleArray>()
         val label = IntArray(df.nrow)
@@ -57,6 +77,7 @@ class BoWSVM (val cat: String = "coding") {
                     cm[voc[event] as Int] = cm[voc[event] as Int] + 1
                 }
             }
+            // преоброзвание получившихся значений в мешке слов
             for (k in cm.indices) {
                 cm[k] = if (cm[k] == 0.0) 0.0 else 1.0 + ln(cm[k]) / ln(10)
             }
@@ -65,16 +86,32 @@ class BoWSVM (val cat: String = "coding") {
         return Pair(Array(res.size) {i -> res[i] }, label)
     }
 
+    /**
+     *  Инициализирует SVM
+     *  @param df train data
+     *  @param c the soft margin penalty parameter
+     *  @param tol the tolerance of convergence test
+     */
     fun fit(df: DataFrame, c: Double, tol: Double) {
         val (X, y) = transform(df)
         knn = SVM.fit(X, y, CosKernel(), c, tol)
     }
 
+    /**
+     * Предсказывает метки для переданных сессий
+     * @param df data for prediction
+     * @return Массив меток
+     */
     fun predict(df: DataFrame): IntArray {
-        val (X, y) = transform(df)
+        val (X, _) = transform(df)
         return knn.predict(X)
     }
 
+    /**
+     * Возвращает f1-score предсказания
+     * @param df data for prediction
+     * @return Массив меток
+     */
     fun predictF1(df: DataFrame): Double {
         val (X, y) = transform(df)
         val res = knn.predict(X)

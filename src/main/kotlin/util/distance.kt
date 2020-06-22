@@ -5,17 +5,10 @@ import smile.math.distance.DynamicTimeWarping
 import java.lang.Math.max
 import java.lang.Math.sqrt
 
-class DistSes<T> : smile.math.distance.Distance<T> {
-    override fun d(x: T, y: T): Double {
-        if (x is Session && y is Session)
-            return 1 - dist(x, y)
-        if (x is String && y is String)
-            return 1 - dist(x, y)
-        return 1.0
-    }
 
-}
-
+/**
+ * Расстояние между сеессиям, рассчитаное из их пересечения
+ */
 fun dist(s1: Session, s2: Session): Double {
     val a1 = ArrayList<String>()
     val a2 = ArrayList<String>()
@@ -48,6 +41,9 @@ fun dist(s1: Session, s2: Session): Double {
 
 }
 
+/**
+ * Расстояние между сеессиям, рассчитаное из их пересечения
+ */
 fun dist(s1: String, s2: String): Double {
     val a1 = s1.split(" , ")
     val a2 = s2.split(" , ")
@@ -77,22 +73,29 @@ fun dist(s1: String, s2: String): Double {
 
 }
 
+/**
+ * Класс обертка для расстояния между действиями
+ */
 class ActionDist : smile.math.distance.Distance<Action> {
     override fun d(x: Action, y: Action): Double {
 
         if (x.group_id == "actions" || y.group_id == "actions") {
+            // если действие action, то расстояние определяется только по event_data
             if (x.dt == y.dt)
                 return 0.0
             return 1.0
         } else if (x.group_id == "productivity" || y.group_id == "productivity") {
+            // если действие productivity, то расстояние определяется только по event_data
             if (x.dt == y.dt)
                 return 0.0
             return 1.0
         } else if (x.group_id == "file.types.usage" || y.group_id == "file.types.usage") {
+            // если действие file.types.usage, то расстояние вычисляется только по event_id
             if (x.event_id == y.event_id)
                 return 0.0
             return 1.0
         } else {
+            // иначе за каждое свопадение группы, ивента или ивент даты расстояние уменьшается
             var score = 1.0
             if (x.group_id != y.group_id)
                 return score
@@ -110,25 +113,12 @@ class ActionDist : smile.math.distance.Distance<Action> {
 
 }
 
+// dtw обертка для ActionDist
 val dtw = DynamicTimeWarping(ActionDist())
 
-fun DTWSession(s1: Session, s2: Session): Double {
-    val a1 = Array(s1.actions.size) { i -> s1.actions[i] }
-    val a2 = Array(s2.actions.size) { i -> s2.actions[i] }
-//    return dtw.apply(a1, a2) / (a1.size + a2.size)
-    return dtw.apply(a1, a2)
-}
-
-class DTWDist<T> : smile.math.distance.Distance<T> {
-    override fun d(x: T, y: T): Double {
-        if (x is Session && y is Session)
-            return DTWSession(x, y)
-        return 1.0
-    }
-
-}
-
-
+/**
+ * Скалярное произведение двух массивов
+ */
 fun prod(s1: DoubleArray, s2: DoubleArray): Double {
     var prod = 0.0
     for (i in s1.indices) {
@@ -137,6 +127,10 @@ fun prod(s1: DoubleArray, s2: DoubleArray): Double {
     return prod
 }
 
+
+/**
+ * Косинусное расстояние между двумя массивами
+ */
 fun cosineSimilarity(s1: DoubleArray, s2: DoubleArray): Double {
     val norm1 = kotlin.math.sqrt(prod(s1, s1))
     val norm2 = kotlin.math.sqrt(prod(s2, s2))
@@ -148,15 +142,60 @@ fun cosineSimilarity(s1: DoubleArray, s2: DoubleArray): Double {
 
 }
 
-class CosDist<T> : smile.math.distance.Distance<T> {
+/**
+ * dtw принимает массивы, поэтому эта обертка преобразует сессии в массив
+ */
+fun DTWSession(s1: Session, s2: Session): Double {
+    val a1 = Array(s1.actions.size) { i -> s1.actions[i] }
+    val a2 = Array(s2.actions.size) { i -> s2.actions[i] }
+//    return dtw.apply(a1, a2) / (a1.size + a2.size)
+    return dtw.apply(a1, a2)
+}
+
+
+/**
+ * Финальная обертка dist для применения в knn
+ */
+class DistSes<T> : smile.math.distance.Distance<T> {
     override fun d(x: T, y: T): Double {
-        if (x is DoubleArray && y is DoubleArray)
-            return cosineSimilarity(x, y)
+        if (x is Session && y is Session)
+            return 1 - dist(x, y)
+        if (x is String && y is String)
+            return 1 - dist(x, y)
         return 1.0
     }
 
 }
 
+/**
+ * Обертка для dtw для применения в knn
+ */
+class DTWDist<T> : smile.math.distance.Distance<T> {
+
+    override fun d(x: T, y: T): Double {
+        if (x is Session && y is Session)
+            return DTWSession(x, y)
+        return 1.0
+    }
+
+}
+
+
+/**
+ * Обертка для косиносного расстояния для применения в knn
+ */
+class CosDist<T> : smile.math.distance.Distance<T> {
+
+    override fun d(x: T, y: T): Double {
+        if (x is DoubleArray && y is DoubleArray)
+            return cosineSimilarity(x, y)
+        return 1.0
+    }
+}
+
+/**
+ * Обертка dtw расстояния для svm
+ */
 class DTWKernel<T>: smile.math.kernel.MercerKernel<T> {
     override fun k(x: T, y: T): Double {
         if (x is Session && y is Session)
@@ -166,6 +205,9 @@ class DTWKernel<T>: smile.math.kernel.MercerKernel<T> {
 
 }
 
+/**
+ * Обертка dist для svm
+ */
 class IntersectionKernel<T>: smile.math.kernel.MercerKernel<T> {
     override fun k(x: T, y: T): Double {
         if (x is Session && y is Session)
@@ -177,6 +219,10 @@ class IntersectionKernel<T>: smile.math.kernel.MercerKernel<T> {
 
 }
 
+
+/**
+ * Обертка косинусного расстояния для svm
+ */
 class CosKernel<T>: smile.math.kernel.MercerKernel<T> {
     override fun k(x: T, y: T): Double {
         if (x is DoubleArray && y is DoubleArray)

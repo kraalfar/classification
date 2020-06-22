@@ -6,10 +6,20 @@ import krangl.*
 import java.io.File
 import java.lang.StringBuilder
 
-
+/**
+ * Содержит функции для преобразования сырых ивентов
+ */
 class SessionFilter {
     companion object {
 
+        /**
+         * Возвращает строчное преобразование ивента
+         * @param s event_data
+         * @param g group_id
+         * @param e event_id
+         * @param parser парсер для json
+         * @return строчное преобразовние
+         */
         fun ai(s: String, g: String, e: String, parser: Parser): String {
             val sb = StringBuilder(s)
             val jo = parser.parse(sb) as JsonObject
@@ -19,6 +29,7 @@ class SessionFilter {
             return e
         }
 
+        // Сопоставление group_id и нужной части event_data
         val dt: HashMap<String, String> = hashMapOf(
             "build.tools.actions" to "class",
             "file.types.usage" to "file_type",
@@ -43,7 +54,11 @@ class SessionFilter {
             "build.maven.packagesearch" to "endpoint"
         )
 
-
+        /**
+         * Преобразует логи, убирает ненужные столбцы и упрощает информацию о событии. Сохраняет в тот же файл с тем
+         * же названием и суффиксом  _filt.
+         * @param path путь до логов
+         */
         fun filter(path: String) {
             val df = DataFrame.readTSV(path)
             val parser: Parser = Parser.default()
@@ -63,7 +78,11 @@ class SessionFilter {
     }
 }
 
-
+/**
+ * Класс одного действия
+ * @property time начало действия
+ * @property dt информация из event_data
+ */
 class Action(val time: Long, val group_id: String, val event_id: String, val dt: String) {
     fun print() {
         println("$time $group_id $event_id $dt")
@@ -74,14 +93,31 @@ class Action(val time: Long, val group_id: String, val event_id: String, val dt:
     }
 }
 
+
+/**
+ * Класс сессии
+ * @property id id сессии, составляется из id пользователя и номера его сессии
+ * @property startTime время начала сессии
+ */
 class Session(val id: String, val startTime: Long = 0) {
     var actions: ArrayList<Action> = ArrayList()
     var cat: String = ""
 
+    /**
+     * Добавляет событие в сессию
+     * @param time время совершения действия
+     * @param group group_id
+     * @param event event_id
+     * @param action информация из event_data
+     */
     fun add(time: Long, group: String, event: String, action: String) {
         actions.add(Action(time,group,event, action))
     }
 
+    /**
+     * Устанавливает категорию сессии
+     * @param cat категория
+     */
     fun category(cat: String) {
         this.cat = cat
     }
@@ -93,10 +129,16 @@ class Session(val id: String, val startTime: Long = 0) {
         }
     }
 
+    /**
+     * @return время конца сессии
+     */
     fun time(): Long {
         return actions[actions.size - 1].time
     }
 
+    /**
+     * @return строка из всех действий в сессии
+     */
     fun events(): String {
         val events = ArrayList<String>()
         for (action in actions)
@@ -104,6 +146,9 @@ class Session(val id: String, val startTime: Long = 0) {
         return events.joinToString(separator = " , ")
     }
 
+    /**
+     * @return время, которое занимает сессия
+     */
     fun times(): String {
         val times = ArrayList<String>()
         for (action in actions)
@@ -112,6 +157,12 @@ class Session(val id: String, val startTime: Long = 0) {
     }
 }
 
+/**
+ * Составляет сессии из логов
+ * @param path путь до логов
+ * @param threshold минимальное время между деййствиями в одной сессии
+ * @return массив из сессий
+ */
 fun makeSessions(path: String, threshold: Long = 36000): ArrayList<Session> {
     val df = DataFrame.readTSV(path)
     val groups = df.groupBy("device_id").sortedBy("time_epoch").groups()
@@ -147,6 +198,12 @@ fun makeSessions(path: String, threshold: Long = 36000): ArrayList<Session> {
     return ses
 }
 
+
+/**
+ * Записывает сессии по данному пути
+ * @param ses массив из сессий
+ * @param path путь до файла
+ */
 fun testWrite(ses: ArrayList<Session>, path: String) {
     val ids = ArrayList<String>()
     val min = ArrayList<Long>()
@@ -169,6 +226,11 @@ fun testWrite(ses: ArrayList<Session>, path: String) {
     ndf.writeTSV(File("$path.tsv"))
 }
 
+/**
+ * Достает сессии из TSV файла
+ * @param path путь по файла
+ * @return массив сессий
+ */
 fun sessionsFromTSV(path: String): ArrayList<Session> {
     val df = DataFrame.readTSV(path)
     val ses = ArrayList<Session>()
@@ -186,6 +248,11 @@ fun sessionsFromTSV(path: String): ArrayList<Session> {
     return ses
 }
 
+/**
+ * Достает сессии из таблицы
+ * @param df таблица с сессиями
+ * @return массив сессий
+ */
 fun sessionsFromDF(df: DataFrame): Array<Session>{
     val ses = ArrayList<Session>()
     for (i in 0 until df.nrow) {
@@ -202,6 +269,10 @@ fun sessionsFromDF(df: DataFrame): Array<Session>{
     return Array(ses.size) {i -> ses[i]}
 }
 
+
+/**
+ * Обобщает действия в сессии
+ */
 fun filter(events: List<String>): ArrayList<String> {
     val res = ArrayList<String>()
     for (event in events) {

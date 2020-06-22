@@ -3,6 +3,11 @@ package bayes
 import krangl.*
 
 
+/**
+ * Разделяет датасет на треин и тест
+ * @param path путь до датасета
+ * @param fraction для попадающая в трейн
+ */
 fun trainTestSplit(path: String, fraction: Double = 0.8): Pair<DataFrame, DataFrame> {
     val df = DataFrame.readTSV(path)
     val trainCount: Int = kotlin.math.ceil(fraction * df.nrow).toInt()
@@ -11,15 +16,9 @@ fun trainTestSplit(path: String, fraction: Double = 0.8): Pair<DataFrame, DataFr
 }
 
 
-fun getArrayList(size: Int = 10, value: Double = 0.1): ArrayList<Double> {
-    val list = ArrayList<Double>()
-    for (i in 0 until size) {
-        list.add(value)
-    }
-    return list
-}
-
-
+/**
+ * Интегрирование
+ */
 fun integrate(x: ArrayList<Double>, y: ArrayList<Double>): Double {
     var res = 0.0
     for (i in 0 until y.size - 1) {
@@ -29,6 +28,12 @@ fun integrate(x: ArrayList<Double>, y: ArrayList<Double>): Double {
 }
 
 
+/**
+ * Класс для предсказания наивным байесом
+ * @property probs словарь вероятностей каждой категории
+ * @property pos словарь действий положительно влияющих на принятие решения для каждой категории
+ * @property negs словарь действий отрицательно влияющих на принятие решения для каждой категории
+ */
 class Predicition(
     val probs: HashMap<String, Double> = HashMap(),
     val pos: HashMap<String, List<String>> = HashMap(),
